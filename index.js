@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 
 
 const app = express();
@@ -6,31 +7,58 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
-const sendDataToApi = (data) => {
-    app.post('/checkout', (req, res) => {
+const authenticate = async () => {
+  try {
+    const response = await axios.post('https://qa-helpharma-p2h-apigateway-back.azurewebsites.net/auth/authenticate', {
+      username: 'pruebaenvio',
+      password: 'prueba123'
+    });
 
-    })
-}
+    const token = response.data.token;
+    return token;
+  } catch (error) {
+    console.error(error);
+  }
+};
 
+const updateStatusOrders = async (token, orderNumber, orderStatus, provider) => {
+  try {
+    const response = await axios.put('https://qa-helpharma-p2h-apigateway-back.azurewebsites.net/distribution/updateStatusOrders', {
+      NumeroPedido: orderNumber,
+      EstadoPedido: orderStatus,
+      Prestador: provider
+    }, {
+      headers: {
+        usuario: 'pruebaenvio',
+        token: token
+      }
+    });
 
-app.post('/detailed-checkout', (req, res) => {
+    const result = response.data;
+    console.log("Result: ", result);
+    return result;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+app.post('/detailed-checkout', async(req, res) => {
    if (!req.body) {
     return res.status(400).send({ error: 'No se recibió ningún dato' });
   }
 
   // Si se recibió el JSON correctamente
-    console.log('Datos JSON recibidos:', req.body);
-
     let { pictures, status, id } = req.body[0]
     let {checkout_time,  created} = req.body[0]
     checkout_time = checkout_time.split(".")[0];
     created = created.split(".")[0];
-    console.log("Checkout time: ", checkout_time);
-    console.log("Checkout Created: ", created);
     pictures = pictures[0];
-    console.log('Pictures:', pictures);
-    console.log('Status: ', status);
-    console.log('Id ', id);
+    status = status === "completed" ? 1 : 0;
+
+    const token = await authenticate();
+
+    updateStatusOrders(token, id, status, 2);
+    console.log("Token", token);
 
     
 
