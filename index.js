@@ -57,12 +57,12 @@ app.post('/detailed-checkout', async(req, res) => {
 
     const token = await authenticate();
 
-    updateStatusOrders(token, id, status, 2);
+    const statusUp = updateStatusOrders(token, id, status, 2);
     console.log("Token", token);
 
     
 
-  return res.status(200).send({ message: 'Datos recibidos exitosamente' });
+  return res.status(200).send({ message: 'Datos recibidos exitosamente', statusUp });
 });
 
 
