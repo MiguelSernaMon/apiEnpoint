@@ -1,5 +1,7 @@
 const express = require('express');
 const axios = require('axios');
+const FormData = require('form-data');
+const { PassThrough } = require('stream');
 
 
 const app = express();
@@ -21,22 +23,68 @@ const authenticate = async () => {
   }
 };
 
-const updateStatusOrders = async (token, orderNumber, orderStatus, provider) => {
+const updateStatusOrders = async (token, orderNumber, orderStatus, provider, motivoDevolucion, imageUrl) => {
   try {
-    const response = await axios.put('https://qa-helpharma-p2h-apigateway-back.azurewebsites.net/distribution/updateStatusOrders', {
-      NumeroPedido: orderNumber,
-      EstadoPedido: orderStatus,
-      Prestador: provider
-    }, {
-      headers: {
-        usuario: 'pruebaenvio',
-        token: token
+    let formData = new FormData();
+    formData.append('NumeroPedido', orderNumber);
+    formData.append('EstadoPedido', orderStatus);
+    formData.append('Prestador', provider);
+
+    if (orderStatus === 2 && motivoDevolucion) {
+      if(
+        motivoDevolucion === "Dirección incorrecta" || motivoDevolucion === "Fuera de zona" ||
+        motivoDevolucion === "Zona Roja no Foto" ){
+
+          motivoDevolucion = 1;
+       
+        }
+      else if (
+        motivoDevolucion === "No hay usuario que firme RECIBIDO" || 
+        motivoDevolucion === "No quiere recibir el paquete" ||
+        motivoDevolucion === "No responde llamada" ||
+        motivoDevolucion === "No se entrega menor de edad" ||
+        motivoDevolucion === "Remisión y Sticker no coinciden" ||
+        motivoDevolucion === "Saca Helpharma" ||
+        motivoDevolucion === "Usuario Ausente" 
+      ){
+        motivoDevolucion = 2;
+      }else{
+        motivoDevolucion = 3;
       }
+
+      formData.append('MotivoDevolucion', motivoDevolucion);
+    }
+    if (Object.keys(motivoDevolucion).length === 0) {
+      formData.append('MotivoDevolucion', 0);
+    }
+    if (imageUrl) {
+      // Fetch the image from the URL
+      const response = await axios({
+        url: imageUrl,
+        method: 'GET',
+        responseType: 'stream',
+      });
+
+      // Create a new ReadableStream
+      const file = new PassThrough();
+      response.data.pipe(file);
+
+      // Append the image to the form data
+      formData.append('im', file, {
+        filename: 'image.jpg',
+        contentType: 'image/jpeg',
+      });
+    }
+
+    const response = await axios.put('https://qa-helpharma-p2h-apigateway-back.azurewebsites.net/distribution/updateStatusOrdersSupport', formData, {
+      headers: {
+        'usuario': 'pruebaenvio',
+        'token': "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6OTcxLCJyb2wiOiJTZXJ2aWNpb3MiLCJuYW1lIjoicHJ1ZWJhZW52aW8iLCJpYXQiOjE3MTIzMjgxODksImV4cCI6MTcxMjQxNDU4OX0.bKm1QdYsKcI0AfDiLCsdtRuzJsQyPVc3dlBfkzAwwKAdLr6rIHp18edNX0MylMptuCGL0ZSBjN4f-FopogA0sQ",
+        ...formData.getHeaders(),
+      },
     });
 
-    const result = response.data;
-    console.log("Result: ", result);
-    return result;
+    return response.data;
   } catch (error) {
     console.error(error);
   }
@@ -57,8 +105,9 @@ app.post('/detailed-checkout', async(req, res) => {
 
     const token = await authenticate();
 
-    const statusUp = updateStatusOrders(token, id, status, 2);
+    const statusUp = updateStatusOrders(token, id, status, 2, "Dirección incorrecta", pictures);
     console.log("Token", token);
+    console.log("id", id);
 
     
 
