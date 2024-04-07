@@ -59,27 +59,20 @@ const updateStatusOrders = async (token, orderNumber, orderStatus, provider, mot
     }
     if (imageUrl) {
       // Fetch the image from the URL
-      const response = await axios({
-        url: imageUrl,
-        method: 'GET',
-        responseType: 'stream',
-      });
+      const response = await axios.get(imageUrl, {responeType: 'stream'})
 
       // Create a new ReadableStream
-      const file = new PassThrough();
-      response.data.pipe(file);
+      // const file = new PassThrough();
+      // response.data.pipe(file);
 
       // Append the image to the form data
-      formData.append('im', file, {
-        filename: 'image.jpg',
-        contentType: 'image/jpeg',
-      });
+      formData.append("image", response.data, "image.jpg")
     }
 
     const response = await axios.put('https://qa-helpharma-p2h-apigateway-back.azurewebsites.net/distribution/updateStatusOrdersSupport', formData, {
       headers: {
         'usuario': 'pruebaenvio',
-        'token': "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6OTcxLCJyb2wiOiJTZXJ2aWNpb3MiLCJuYW1lIjoicHJ1ZWJhZW52aW8iLCJpYXQiOjE3MTIzMjgxODksImV4cCI6MTcxMjQxNDU4OX0.bKm1QdYsKcI0AfDiLCsdtRuzJsQyPVc3dlBfkzAwwKAdLr6rIHp18edNX0MylMptuCGL0ZSBjN4f-FopogA0sQ",
+        'token': token,
         ...formData.getHeaders(),
       },
     });
@@ -101,17 +94,15 @@ app.post('/detailed-checkout', async(req, res) => {
     checkout_time = checkout_time.split(".")[0];
     created = created.split(".")[0];
     pictures = pictures[0];
-    status = status === "completed" ? 1 : 0;
+    status = status === "completed" ? 1 : 2;
 
     const token = await authenticate();
 
-    const statusUp = updateStatusOrders(token, id, status, 2, "Dirección incorrecta", pictures);
+    const statusUp =  updateStatusOrders(token, id, status, 2, "Dirección incorrecta", pictures);
     console.log("Token", token);
     console.log("id", id);
-
     
-
-  return res.status(200).send({ message: 'Datos recibidos exitosamente', statusUp });
+    return res.status(200).send({ message: 'Datos recibidos exitosamente', statusUp });
 });
 
 
